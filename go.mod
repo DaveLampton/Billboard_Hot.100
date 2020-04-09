@@ -1,4 +1,4 @@
-module github.com/DaveLampton/billboard
+module github.com/DaveLampton/Billboard_Hot.100
 
 go 1.14
 

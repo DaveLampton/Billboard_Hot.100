@@ -20,8 +20,8 @@ func main() {
 		return
 	}
 
-	// Hot 100 Charts released on Saturdays for the coming week: the week of Monday's date.
-	// First week ever: released Aug 2, 1958, for the week of August 4th.
+	// Hot 100 Charts released on Saturdays for the coming week: the week of Monday's date
+	// first week ever: released Aug 2, 1958, for the week of August 4th, 1958
 	now := time.Now()
 	firstWeek, _ := time.Parse("2006-01-02", "1958-08-04")
 	startDate, _ := time.Parse("2006-01-02", os.Args[1]) // command line argument one
@@ -32,7 +32,7 @@ func main() {
 	if len(os.Args) == 3 { // endDate was specified
 		endDate, _ = time.Parse("2006-01-02", os.Args[2]) // command line argument two
 	} else {
-		endDate = startDate.AddDate(0, 0, 140) // add twenty weeks
+		endDate = startDate.AddDate(0, 0, 140) // set default endDate to twenty weeks
 	}
 	if endDate.After(now) {
 		endDate = now
@@ -72,7 +72,7 @@ func main() {
 		line.Artist = strings.TrimSpace(e.DOM.Find(".chart-element__information__artist").Text())
 		line.LastWeek = strings.TrimSpace(e.DOM.Find(".chart-element__meta.text--last").Text())
 		line.Trend = strings.TrimSpace(e.DOM.Find(".chart-element__trend").Text())
-		// Correct a typo in Billboard's data:
+		// correct a typo in Billboard's data:
 		if line.Trend == "Failing" {
 			line.Trend = "Falling"
 		}
@@ -86,17 +86,13 @@ func main() {
 		fmt.Println("Scraping", r.URL)
 	})
 
-	// count of weeks retrieved in this execution run
-	weeks := 0
-	// Billboard.com seems to have a limit at around 20 requests per minute
-	maxWeeks := 20
-	for week := startDate; week.Before(endDate) && weeks < maxWeeks; week = week.AddDate(0, 0, 7) {
+	for week := startDate; week.Before(endDate); week = week.AddDate(0, 0, 7) {
 
-		// Create data directory if necessary
+		// create data directory if necessary
 		if err := os.Mkdir("data", 0755); os.IsExist(err) {
 			//log.Println("data directory already exists")
 		}
-		// Create year directory if necessary
+		// create data/year directory if necessary
 		if err := os.Mkdir("data/"+week.Format("2006"), 0755); os.IsExist(err) {
 			//log.Println("data/" + week.Format("2006") + " directory already exists")
 		}
@@ -123,8 +119,9 @@ func main() {
 		}
 		f.Close()
 
-		// increment weeks processed
-		weeks++
+		// throttle our requests
+		log.Println("self-throttle: pausing for three seconds")
+		time.Sleep(3 * time.Second)
 	}
 
 	log.Println("-- Done.")

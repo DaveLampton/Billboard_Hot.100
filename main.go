@@ -24,13 +24,13 @@ func main() {
 	// First week ever: released Aug 2, 1958, for the week of August 4th.
 	now := time.Now()
 	firstWeek, _ := time.Parse("2006-01-02", "1958-08-04")
-	startDate, _ := time.Parse("2006-01-02", os.Args[1])
+	startDate, _ := time.Parse("2006-01-02", os.Args[1]) // command line argument one
 	if startDate.Before(firstWeek) {
 		startDate = firstWeek
 	}
 	var endDate time.Time
-	if len(os.Args) == 3 {
-		endDate, _ = time.Parse("2006-01-02", os.Args[2])
+	if len(os.Args) == 3 { // endDate was specified
+		endDate, _ = time.Parse("2006-01-02", os.Args[2]) // command line argument two
 	} else {
 		endDate = startDate.AddDate(0, 0, 140) // add twenty weeks
 	}
@@ -50,10 +50,10 @@ func main() {
 
 	type ChartLine struct {
 		Rank     string
-		Trend    string
 		Song     string
 		Artist   string
 		LastWeek string
+		Trend    string
 		Movement string
 		Peak     string
 		Weeks    string
@@ -68,14 +68,14 @@ func main() {
 		var line ChartLine
 
 		line.Rank = strings.TrimSpace(e.DOM.Find(".chart-element__rank__number").Text())
+		line.Song = strings.TrimSpace(e.DOM.Find(".chart-element__information__song").Text())
+		line.Artist = strings.TrimSpace(e.DOM.Find(".chart-element__information__artist").Text())
+		line.LastWeek = strings.TrimSpace(e.DOM.Find(".chart-element__meta.text--last").Text())
 		line.Trend = strings.TrimSpace(e.DOM.Find(".chart-element__trend").Text())
 		// Correct a typo in Billboard's data:
 		if line.Trend == "Failing" {
 			line.Trend = "Falling"
 		}
-		line.Song = strings.TrimSpace(e.DOM.Find(".chart-element__information__song").Text())
-		line.Artist = strings.TrimSpace(e.DOM.Find(".chart-element__information__artist").Text())
-		line.LastWeek = strings.TrimSpace(e.DOM.Find(".chart-element__meta.text--last").Text())
 		line.Movement = strings.TrimSpace(e.DOM.Find(".chart-element__information__delta__text.text--default").Text())
 		line.Peak = strings.TrimSpace(e.DOM.Find(".chart-element__meta.text--peak").Text())
 		line.Weeks = strings.TrimSpace(e.DOM.Find(".chart-element__meta.text--week").Text())
@@ -83,7 +83,7 @@ func main() {
 	})
 
 	c.OnRequest(func(r *colly.Request) {
-		fmt.Println("Visiting", r.URL)
+		fmt.Println("Scraping", r.URL)
 	})
 
 	// count of weeks retrieved in this execution run
@@ -104,7 +104,7 @@ func main() {
 		thisWeek = make([]ChartLine, 0)
 
 		// open file for this week
-		log.Println("week", week.Format("2006.01.02"))
+		log.Println("-- Week:", week.Format("2006-01-02"))
 		f, err := os.OpenFile("data/"+week.Format("2006")+"/"+week.Format("2006-01-02")+".json",
 			os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
@@ -127,5 +127,5 @@ func main() {
 		weeks++
 	}
 
-	log.Println("Done.")
+	log.Println("-- Done.")
 }

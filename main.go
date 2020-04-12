@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -9,43 +8,26 @@ import (
 	"time"
 
 	"github.com/gocolly/colly/v2"
+	jsoniter "github.com/json-iterator/go"
+)
+
+var startDate time.Time
+var endDate time.Time
+
+type dataFormat int
+
+// enum to specify JSON or CSV data
+const (
+	JSON dataFormat = 0
+	CSV  dataFormat = 1
 )
 
 func main() {
-	if len(os.Args) != 3 && len(os.Args) != 2 {
-		fmt.Print("Usage:", os.Args[0], "startDate", "[endDate]\n"+
-			"Dates must be in the form: YYYY-MM-DD\n"+
-			"Up to twenty weeks at a time may be downloaded per execution.\n"+
-			"endDate defaults to twenty weeks past the startDate.\n\n")
-		return
-	}
 
-	// Hot 100 Charts released on Saturdays for the coming week: the week of Monday's date
-	// first week ever: released Aug 2, 1958, for the week of August 4th, 1958
-	now := time.Now()
-	firstWeek, _ := time.Parse("2006-01-02", "1958-08-04")
-	startDate, _ := time.Parse("2006-01-02", os.Args[1]) // command line argument one
-	if startDate.Before(firstWeek) {
-		startDate = firstWeek
-	}
-	var endDate time.Time
-	if len(os.Args) == 3 { // endDate was specified
-		endDate, _ = time.Parse("2006-01-02", os.Args[2]) // command line argument two
-	} else {
-		endDate = startDate.AddDate(0, 0, 140) // set default endDate to twenty weeks
-	}
-	if endDate.After(now) {
-		endDate = now
-	}
-	if endDate.Before(startDate) {
-		fmt.Println("endDate must come after startDate")
+	err := parseArgs(os.Args)
+	if err != "" {
+		fmt.Println(err)
 		return
-	}
-	//fmt.Println("Start Date:", startDate, " End date:", endDate)
-
-	// backup in time to the nearest Monday...
-	for startDate.Weekday(); startDate.Weekday() != 1; startDate = startDate.AddDate(0, 0, -1) {
-		//log.Println(startDate.String())
 	}
 
 	type ChartLine struct {
@@ -62,6 +44,10 @@ func main() {
 	var thisWeek []ChartLine
 
 	c := colly.NewCollector()
+
+	c.OnRequest(func(r *colly.Request) {
+		fmt.Println("Scraping", r.URL)
+	})
 
 	c.OnHTML(".chart-list__element", func(e *colly.HTMLElement) {
 
@@ -82,20 +68,9 @@ func main() {
 		thisWeek = append(thisWeek, line)
 	})
 
-	c.OnRequest(func(r *colly.Request) {
-		fmt.Println("Scraping", r.URL)
-	})
-
 	for week := startDate; week.Before(endDate); week = week.AddDate(0, 0, 7) {
 
-		// create data directory if necessary
-		if err := os.Mkdir("data", 0755); os.IsExist(err) {
-			//log.Println("data directory already exists")
-		}
-		// create data/year directory if necessary
-		if err := os.Mkdir("data/"+week.Format("2006"), 0755); os.IsExist(err) {
-			//log.Println("data/" + week.Format("2006") + " directory already exists")
-		}
+		createDataDirectories(week)
 
 		thisWeek = make([]ChartLine, 0)
 
@@ -113,16 +88,67 @@ func main() {
 			log.Println(string("Visit error: ") + err.Error())
 		}
 
-		json, _ := json.MarshalIndent(thisWeek, "", " ")
-		if _, err := f.Write(json); err != nil {
+		var json = jsoniter.ConfigCompatibleWithStandardLibrary
+		jsonOut, _ := json.MarshalIndent(thisWeek, "", " ")
+		if _, err := f.Write(jsonOut); err != nil {
 			log.Println(err)
 		}
 		f.Close()
 
 		// throttle our requests
-		log.Println("self-throttle: pausing for three seconds")
-		time.Sleep(3 * time.Second)
+		log.Println("self-throttle: pausing for two seconds")
+		time.Sleep(2 * time.Second)
 	}
 
 	log.Println("-- Done.")
+}
+
+func parseArgs(args []string) string {
+	if len(args) != 3 && len(args) != 2 {
+		err := "Usage: Billboard_Hot.100 startDate [endDate]\n" +
+			"Dates must be in the form: YYYY-MM-DD\n" +
+			"Up to twenty weeks at a time may be downloaded per execution.\n" +
+			"endDate defaults to twenty weeks past the startDate.\n\n"
+		return err
+	}
+
+	// Hot 100 Charts released on Saturdays for the coming week: the week of Monday's date
+	// first week ever: released Aug 2, 1958, for the week of August 4th, 1958
+	now := time.Now()
+	firstWeek, _ := time.Parse("2006-01-02", "1958-08-04")
+	startDate, _ = time.Parse("2006-01-02", args[1]) // command line argument one
+	if startDate.Before(firstWeek) {
+		startDate = firstWeek
+	}
+
+	if len(args) == 3 { // endDate was specified
+		endDate, _ = time.Parse("2006-01-02", args[2]) // command line argument two
+	} else {
+		endDate = startDate.AddDate(0, 0, 140) // set default endDate to twenty weeks
+	}
+	if endDate.After(now) {
+		endDate = now
+	}
+	if endDate.Before(startDate) {
+		endDate = startDate
+	}
+
+	// backup in time to the nearest Monday...
+	for startDate.Weekday(); startDate.Weekday() != 1; startDate = startDate.AddDate(0, 0, -1) {
+		//log.Println(startDate.String())
+	}
+
+	//fmt.Println("Start Date:", startDate, "-- End date:", endDate)
+	return ""
+}
+
+func createDataDirectories(week time.Time) {
+	// create data directory if necessary
+	if err := os.Mkdir("data", 0755); os.IsExist(err) {
+		//log.Println("data directory already exists")
+	}
+	// create data/year directory if necessary
+	if err := os.Mkdir("data/"+week.Format("2006"), 0755); os.IsExist(err) {
+		//log.Println("data/" + week.Format("2006") + " directory already exists")
+	}
 }

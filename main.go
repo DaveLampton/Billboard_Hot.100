@@ -14,15 +14,21 @@ import (
 var startDate time.Time
 var endDate time.Time
 
-type dataFormat int
+type formats struct {
+	JSON int
+	CSV  int
+}
 
-// enum to specify JSON or CSV data
-const (
-	JSON dataFormat = 0
-	CSV  dataFormat = 1
-)
+// Formats is an Enum for data formats. Treat as read-only.
+var Formats = &formats{
+	JSON: 0,
+	CSV:  1,
+}
 
 func main() {
+
+	DataFormat := Formats.JSON // default data format
+	fmt.Println(DataFormat)
 
 	err := parseArgs(os.Args)
 	if err != "" {

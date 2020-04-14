@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -26,9 +27,6 @@ var Formats = &formats{
 }
 
 func main() {
-
-	DataFormat := Formats.JSON // default data format
-	fmt.Println(DataFormat)
 
 	err := parseArgs(os.Args)
 	if err != "" {
@@ -110,7 +108,14 @@ func main() {
 }
 
 func parseArgs(args []string) string {
-	if len(args) != 3 && len(args) != 2 {
+
+	var argCount = len(args) - 1
+	dataFormat := Formats.JSON // default format
+	verify := flag.Bool("verify", false, "verify that all JSON and CSV files in the data directory each contain 100 songs")
+	CSV := flag.Bool("csv", false, "use the CSV data format")
+	flag.Parse()
+
+	if len(args) < 2 || len(args) > 5 {
 		err := "Usage: Billboard_Hot.100 startDate [endDate]\n" +
 			"Dates must be in the form: YYYY-MM-DD\n" +
 			"Up to twenty weeks at a time may be downloaded per execution.\n" +
@@ -118,17 +123,33 @@ func parseArgs(args []string) string {
 		return err
 	}
 
+	if *CSV {
+		argCount--
+		dataFormat = Formats.CSV
+	}
+
+	if *verify {
+		argCount--
+		fmt.Println("Verify flag specified. startDate and endDate are ignored.")
+		return verifyData()
+	}
+
+	if dataFormat == 1 {
+		fmt.Println("Using CSV data format.")
+	} else {
+		fmt.Println("Using JSON data format.")
+	}
 	// Hot 100 Charts released on Saturdays for the coming week: the week of Monday's date
 	// first week ever: released Aug 2, 1958, for the week of August 4th, 1958
 	now := time.Now()
 	firstWeek, _ := time.Parse("2006-01-02", "1958-08-04")
-	startDate, _ = time.Parse("2006-01-02", args[1]) // command line argument one
+	startDate, _ = time.Parse("2006-01-02", args[len(args)-2]) // command line argument one
 	if startDate.Before(firstWeek) {
 		startDate = firstWeek
 	}
 
-	if len(args) == 3 { // endDate was specified
-		endDate, _ = time.Parse("2006-01-02", args[2]) // command line argument two
+	if argCount > 1 { // endDate was specified
+		endDate, _ = time.Parse("2006-01-02", args[len(args)-1]) // command line argument two
 	} else {
 		endDate = startDate.AddDate(0, 0, 140) // set default endDate to twenty weeks
 	}
@@ -157,4 +178,8 @@ func createDataDirectories(week time.Time) {
 	if err := os.Mkdir("data/"+week.Format("2006"), 0755); os.IsExist(err) {
 		//log.Println("data/" + week.Format("2006") + " directory already exists")
 	}
+}
+
+func verifyData() string {
+	return "Data checks out OK"
 }

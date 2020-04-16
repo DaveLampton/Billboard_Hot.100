@@ -26,6 +26,7 @@ var Formats = &formats{
 	JSON: 0,
 	CSV:  1,
 }
+var dataFormat int = Formats.JSON // default format
 
 // ChartLine represents a single song on the chart of a particular week.
 type ChartLine struct {
@@ -80,12 +81,18 @@ func main() {
 
 		thisWeek = make([]ChartLine, 0)
 
+		var extension string
+		if dataFormat == Formats.CSV {
+			extension = ".csv"
+		} else {
+			extension = ".json"
+		}
 		// open file for this week
 		log.Println("-- Week:", week.Format("2006-01-02"))
-		if _, err := os.Stat("data/" + week.Format("2006") + "/" + week.Format("2006-01-02") + ".json"); os.IsNotExist(err) {
+		if _, err := os.Stat("data/" + week.Format("2006") + "/" + week.Format("2006-01-02") + extension); os.IsNotExist(err) {
 			fmt.Printf("File does not exist. Creating...\n")
 
-			f, err := os.OpenFile("data/"+week.Format("2006")+"/"+week.Format("2006-01-02")+".json",
+			f, err := os.OpenFile("data/"+week.Format("2006")+"/"+week.Format("2006-01-02")+extension,
 				os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
 				log.Println(err)
@@ -97,10 +104,34 @@ func main() {
 				log.Println(string("Visit error: ") + err.Error())
 			}
 
-			var json = jsoniter.ConfigCompatibleWithStandardLibrary
-			jsonOut, _ := json.MarshalIndent(thisWeek, "", " ")
-			if _, err := f.Write(jsonOut); err != nil {
-				log.Println(err)
+			if dataFormat == Formats.CSV {
+				// write CSV header
+				f.WriteString("Rank" + ",")
+				f.WriteString("Song" + ",")
+				f.WriteString("Artist" + ",")
+				f.WriteString("LastWeek" + ",")
+				f.WriteString("Trend" + ",")
+				f.WriteString("Movement" + ",")
+				f.WriteString("Peak" + ",")
+				f.WriteString("Weeks" + "\n")
+				// write CSV data
+				for _, line := range thisWeek {
+					f.WriteString(line.Rank + ",")
+					f.WriteString(line.Song + ",")
+					f.WriteString(line.Artist + ",")
+					f.WriteString(line.LastWeek + ",")
+					f.WriteString(line.Trend + ",")
+					f.WriteString(line.Movement + ",")
+					f.WriteString(line.Peak + ",")
+					f.WriteString(line.Weeks + "\n")
+				}
+			} else {
+				// write JSON data
+				var json = jsoniter.ConfigCompatibleWithStandardLibrary
+				jsonOut, _ := json.MarshalIndent(thisWeek, "", " ")
+				if _, err := f.Write(jsonOut); err != nil {
+					log.Println(err)
+				}
 			}
 			f.Close()
 
@@ -118,7 +149,6 @@ func main() {
 func parseArgs(args []string) string {
 
 	var argCount = len(args) - 1
-	dataFormat := Formats.JSON // default format
 	verify := flag.Bool("verify", false, "Verify that all JSON and CSV files"+
 		" in the data directory each contain 100 songs. Invalid"+
 		" data files will be deleted.")
@@ -145,7 +175,7 @@ func parseArgs(args []string) string {
 		return verifyData()
 	}
 
-	if dataFormat == 1 {
+	if dataFormat == Formats.CSV {
 		fmt.Println("Using CSV data format.")
 	} else {
 		fmt.Println("Using JSON data format.")
@@ -158,7 +188,7 @@ func parseArgs(args []string) string {
 	if startDate.Before(firstWeek) {
 		startDate = firstWeek
 	}
-	fmt.Println(startDate.Format("2006-01-02"))
+	//fmt.Println(startDate.Format("2006-01-02"))
 
 	if argCount > 1 { // endDate was specified
 		endDate, _ = time.Parse("2006-01-02", args[len(args)-1]) //
@@ -173,7 +203,7 @@ func parseArgs(args []string) string {
 	if endDate.Before(startDate) {
 		endDate = startDate
 	}
-	fmt.Println(endDate.Format("2006-01-02"))
+	//fmt.Println(endDate.Format("2006-01-02"))
 
 	// backup in time to the nearest Monday...
 	for startDate.Weekday(); startDate.Weekday() != 1; startDate = startDate.AddDate(0, 0, -1) {

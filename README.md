@@ -1,22 +1,28 @@
 # Billboard_Hot.100
 ### Scrapes Billboard.com for Hot 100 chart data, from Aug 1958 to the present.
 
-#### Develop:
+#### Develop and run:
 
     go run main.go
 
-#### Build:
+#### Build executable:
 
     go build
 
 #### Usage:
 
-    Billboard_Hot.100 startDate [endDate]
+    Billboard_Hot.100 [option] startDate [endDate]
 
-Dates must be in the form of: YYYY-MM-DD  
-Up to twenty weeks at a time may be downloaded per execution.  
+Dates must be in the form of: YYYY-MM-DD 
 endDate defaults to twenty weeks past the startDate.
+If a data file already exists it will be skipped. Delete it to retrieve that data again.
 
-Results are JSON files that are put into a newly created 'data' folder, and then in folders by year.
+Options:
+-csv
+    Writes CSV data files instead of JSON
+-verify
+    Verifies that all JSON and CSV files in the data directory each contain 100 songs. (When the verify option is used, the startDate and endDate are ignored.) Invalid data files are deleted.
 
-The Hot 100 list is released each Saturday for the upcoming week, starting on Sunday. The official listed date is that of the Monday of that week.
+Results are JSON or CSV files that are put into a newly created 'data' folder, and then in folders by year.
+
+Billboard releases the Hot 100 list each Saturday for the upcoming week, starting on Sunday. The official listed date is that of the Monday of that week.

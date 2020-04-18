@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"flag"
 	"fmt"
 	"log"
@@ -116,9 +117,11 @@ func main() {
 				f.WriteString("Weeks" + "\n")
 				// write CSV data
 				for _, line := range thisWeek {
+					line.Song = strings.ReplaceAll(line.Song, "\"", "")
+					line.Artist = strings.ReplaceAll(line.Artist, "\"", "")
 					f.WriteString(line.Rank + ",")
-					f.WriteString(line.Song + ",")
-					f.WriteString(line.Artist + ",")
+					f.WriteString("\"" + line.Song + "\"" + ",")
+					f.WriteString("\"" + line.Artist + "\"" + ",")
 					f.WriteString(line.LastWeek + ",")
 					f.WriteString(line.Trend + ",")
 					f.WriteString(line.Movement + ",")
@@ -226,18 +229,27 @@ func createDataDirectories(week time.Time) {
 }
 
 func verifyData() string {
-	err := filepath.Walk("data",
+	if err := filepath.Walk("data",
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				return err
+				log.Println("filepath.Walk Handler: ", err)
 			}
 			switch {
 			case err != nil:
-				log.Println("filepath.Walk: ", err)
+				log.Println("filepath.Walk Handler: ", err)
 			case info.IsDir():
 				//fmt.Println(path, "Directory")
 			default:
 				//fmt.Println(path, info.Size())
+				ext := filepath.Ext(path)
+				if ext == ".csv" {
+					dataFormat = Formats.CSV
+				} else if ext == ".json" {
+					dataFormat = Formats.JSON
+				} else {
+					return nil
+				}
+
 				f, err := os.Open(path)
 				if err != nil {
 					log.Println("OpenFile:", err)
@@ -251,11 +263,32 @@ func verifyData() string {
 				//fmt.Print("File contents:\n", string(contents))
 
 				theWeek := make([]ChartLine, 100)
-				err = jsoniter.Unmarshal(contents, &theWeek)
-				if err != nil {
-					log.Println("Unmarshalling:", err)
+
+				if dataFormat == Formats.CSV {
+					r := csv.NewReader(strings.NewReader(string(contents)))
+					for i := 0; i <= 100 && i <= len(contents)-1; i++ {
+						fields, err := r.Read()
+						if err != nil {
+							fmt.Println("CSV read error: ", err)
+						}
+						if i != 0 {
+							theWeek[i-1].Rank = fields[0]
+							theWeek[i-1].Song = fields[1]
+							theWeek[i-1].Artist = fields[2]
+							theWeek[i-1].LastWeek = fields[3]
+							theWeek[i-1].Trend = fields[4]
+							theWeek[i-1].Movement = fields[5]
+							theWeek[i-1].Peak = fields[6]
+							theWeek[i-1].Weeks = fields[7]
+						}
+					}
+				} else {
+					err = jsoniter.Unmarshal(contents, &theWeek)
+					if err != nil {
+						log.Println("Unmarshalling:", err)
+					}
 				}
-				// for some rerason several charts in late 1976 to early 1977
+				// for some reason several charts in late 1976 to early 1977
 				// have only 99 songs in the Hot100, so I'll accept 99 songs
 				if len(theWeek) != 100 && len(theWeek) != 99 {
 					fmt.Println(path, ": len(theWeek):", len(theWeek))
@@ -267,10 +300,12 @@ func verifyData() string {
 					fmt.Println("File Deleted")
 				}
 			}
+			if err != nil {
+				log.Println("Handler switch: ", err)
+			}
 			return nil
-		})
-	if err != nil {
-		log.Println(err)
+		}); err != nil {
+		log.Println("filepath.Walk: ", err)
 	}
 	return "Any invalid/incomplete files have been removed. Remaining data checks out OK."
 }

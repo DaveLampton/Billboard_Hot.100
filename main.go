@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"encoding/csv"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -265,8 +267,17 @@ func verifyData() string {
 				theWeek := make([]ChartLine, 100)
 
 				if dataFormat == Formats.CSV {
+					var content = make([]byte, info.Size())
 					r := csv.NewReader(strings.NewReader(string(contents)))
-					for i := 0; i <= 100 && i <= len(contents)-1; i++ {
+					ior := bytes.NewReader(content)
+					if err != nil {
+						fmt.Println("Problem running f.Read() for file: " + path)
+					}
+					numLines, err := lineCounter(ior)
+					if err != nil {
+						fmt.Println("Problem counting lines in file: " + path)
+					}
+					for i := 0; i <= 100 && i <= numLines; i++ {
 						fields, err := r.Read()
 						if err != nil {
 							fmt.Println("CSV read error: ", err)
@@ -308,4 +319,23 @@ func verifyData() string {
 		log.Println("filepath.Walk: ", err)
 	}
 	return "Any invalid/incomplete files have been removed. Remaining data checks out OK."
+}
+
+func lineCounter(r io.Reader) (int, error) {
+	buf := make([]byte, 32*1024)
+	count := 0
+	lineSep := []byte{'\n'}
+
+	for {
+		c, err := r.Read(buf)
+		count += bytes.Count(buf[:c], lineSep)
+
+		switch {
+		case err == io.EOF:
+			return count, nil
+
+		case err != nil:
+			return count, err
+		}
+	}
 }

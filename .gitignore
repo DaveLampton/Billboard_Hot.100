@@ -3,6 +3,10 @@ Billboard_Hot.100
 
 # Saved scrapes
 data/
+AWS
+AWS1
+AWS2
+
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
